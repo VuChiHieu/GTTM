@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bản đồ thông minh — Tìm đường + Voice</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+</head>
+<body>
+  <div id="app" class="app">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo">🗺️</div>
+        <div class="title">
+          <h1>SmartRoute VN</h1>
+          <p>Tìm đường • Hướng dẫn giọng nói • Dark Mode</p>
+        </div>
+      </div>
+
+      <div class="right-actions">
+        <button id="btnDark" class="btn ghost" title="Chuyển Dark/Light">🌙</button>
+        <button id="btnDrivingMode" class="btn" title="Chế độ lái xe">🚘 Driving</button>
+      </div>
+    </header>
+
+    <!-- Controls -->
+    <section class="controls">
+      <div class="field">
+        <label>Điểm bắt đầu</label>
+        <input id="inputFrom" type="text" placeholder="Ví dụ: 1600 Trường Sa, Q.3, HCM hoặc '10.77,106.68'"/>
+        <button id="btnUseMyLocation" class="btn tiny">📍 Dùng vị trí tôi</button>
+      </div>
+      <div class="field">
+        <label>Điểm đến</label>
+        <input id="inputTo" type="text" placeholder="Ví dụ: Bến xe, sân bay… hoặc '21.03,105.85'"/>
+      </div>
+      <div class="actions-row">
+        <button id="btnRoute" class="btn primary">🔎 Tính lộ trình</button>
+        <button id="btnStartVoice" class="btn">🔊 Bắt đầu giọng nói</button>
+        <button id="btnStopVoice" class="btn ghost">🔇 Dừng giọng nói</button>
+        <button id="btnClear" class="btn danger ghost">♻️ Xóa</button>
+      </div>
+    </section>
+
+    <!-- Main two columns -->
+    <main class="main">
+      <aside class="sidebar card glass">
+        <div class="summary">
+          <h3>Thông tin lộ trình</h3>
+          <div class="summary-grid">
+            <div>
+              <div class="label">Quãng đường</div>
+              <div id="sumDistance" class="value">—</div>
+            </div>
+            <div>
+              <div class="label">Thời gian</div>
+              <div id="sumDuration" class="value">—</div>
+            </div>
+            <div>
+              <div class="label">ETA (giờ đến)</div>
+              <div id="sumETA" class="value">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="instructions">
+          <h3>Hướng dẫn từng chặng</h3>
+          <ol id="stepsList" class="steps"></ol>
+        </div>
+      </aside>
+
+      <section class="map-wrap card">
+        <div id="map" class="map"></div>
+
+        <div class="floating-tools">
+          <button id="btnLocate" class="btn small">🎯 Center</button>
+          <button id="btnRotate" class="btn small ghost">🧭 Khóa hướng</button>
+        </div>
+
+        <!-- Bottom status bar (speed/heading placeholder) -->
+        <div class="status-bar">
+          <span id="statusGPS">GPS: —</span>
+          <span id="statusSpeed">Tốc độ ~ — km/h</span>
+          <span id="statusHeading">Hướng —°</span>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <span>© 2025 SmartRoute VN • Demo học tập</span>
+      <span>Tiles © OpenStreetMap contributors</span>
+    </footer>
+  </div>
+
+  <!-- Scripts -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="script.js"></script>
+</body>
+</html>
