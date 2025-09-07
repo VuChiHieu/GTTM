@@ -23,7 +23,7 @@ export class WeatherModule {
       font-weight: 500;
       padding: 4px 8px;
       border-radius: 6px;
-      background: rgba(255,255,255,0.8);
+      background: rgba(50,50,50,0.8);
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
       transition: background 0.3s, color 0.3s;
     `;
@@ -78,30 +78,58 @@ export class WeatherModule {
     this.markers = [];
   }
 
-  // Kiểm tra alert realtime khi user di chuyển
   checkAlerts(userLat, userLng) {
-    if (!this.markers.length) return;
-
     const toRad = deg => deg * Math.PI / 180;
     const distance = (lat1, lng1, lat2, lng2) => {
-      const R = 6371;
+      const R = 6371; // km
       const dLat = toRad(lat2 - lat1);
       const dLng = toRad(lng2 - lng1);
       const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c; // km
     };
 
+    // tìm marker gần nhất trong vòng 3km chưa alert quá 3 lần
+    let nearestMarker = null;
+    let minDist = Infinity;
+
     this.markers.forEach(m => {
-      if (m.alertCount >= 3) return; // tối đa 3 lần cảnh báo
+      if(m.alertCount >= 3) return; // đã alert đủ
       const d = distance(userLat, userLng, m.lat, m.lng);
-      if (d <= 3) { // trong 3km
-        const msg = m.forecast || "⚠️ Có khả năng mưa trên tuyến đường gần đây!";
-        if (this.toast) this.toast.show(msg);
-        if (this.voiceNav) this.voiceNav.speak(msg);
-        m.alertCount += 1;
+      if(d <= 3 && d < minDist) {
+        minDist = d;
+        nearestMarker = m;
       }
     });
+
+    if(nearestMarker) {
+      const now = Date.now();
+      if(!nearestMarker.lastAlertTime || (now - nearestMarker.lastAlertTime >= 5000)) {
+        const msg = nearestMarker.forecast || "⚠️ Có khả năng mưa trên tuyến đường gần đây!";
+        
+        // toast & voice
+        if(this.toast) this.toast.show(msg);
+        if(this.voiceNav) this.voiceNav.speak(msg);
+
+        // highlight tạm marker
+        if(this.map && L) {
+          const highlight = L.circleMarker([nearestMarker.lat, nearestMarker.lng], {
+            radius: 8,
+            color: "#ff4500",
+            fillColor: "#ff4500",
+            fillOpacity: 0.9
+          }).addTo(this.map);
+
+          setTimeout(() => {
+            if(this.map.hasLayer(highlight)) this.map.removeLayer(highlight);
+          }, 5000);
+        }
+
+        // cập nhật
+        nearestMarker.alertCount += 1;
+        nearestMarker.lastAlertTime = now;
+      }
+    }
   }
 
   // demo route alert, dùng khi route vừa tính xong
