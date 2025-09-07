@@ -2,6 +2,10 @@
 const OPENWEATHER_KEY = "fc77d3dc7e2bd53cd1b7fc88dd579d85";
 const OSRM_SERVER = "https://router.project-osrm.org"; // server Việt Nam
 
+import { WeatherModule } from './weather.js';
+import { TrafficModule } from './traffic.js';
+import { toast } from './toast.js';
+
 /* ====== SELECTORS ====== */
 const elFrom = document.getElementById("inputFrom");
 const elTo = document.getElementById("inputTo");
@@ -23,6 +27,8 @@ const stepsList = document.getElementById("stepsList");
 const statusGPS = document.getElementById("statusGPS");
 const statusSpeed = document.getElementById("statusSpeed");
 const statusHeading = document.getElementById("statusHeading");
+let cachedSteps = [];
+
 
 /* ====== MAP ====== */
 let map, tileLayer, routeLine, startMarker, endMarker, userMarker, headingLocked = false;
@@ -30,7 +36,11 @@ let currentHeading = 0;
 let watchId = null;
 
 initMap();
-
+const voiceNav = {
+  speak: speak
+};
+const weather = new WeatherModule(map, OPENWEATHER_KEY, toast, voiceNav);
+const traffic = new TrafficModule(map);
 function initMap(){
   map = L.map("map", {
     zoomControl: true,
@@ -238,7 +248,7 @@ let voiceTimer = null;
 // Hàm đọc text
 function speak(text) {
   if (!("speechSynthesis" in window)) {
-    alert("Trình duyệt không hỗ trợ voice.");
+    toast.show("Trình duyệt không hỗ trợ voice.");
     return;
   }
   const msg = new SpeechSynthesisUtterance(text);
@@ -248,7 +258,7 @@ function speak(text) {
 
 function startVoice() {
   if (!cachedSteps.length) {
-    alert("Chưa có lộ trình để đọc hướng dẫn.");
+    toast.show("Chưa có lộ trình để đọc hướng dẫn.");
     return;
   }
 
@@ -349,6 +359,10 @@ function watchLocation() {
       map.setView([latitude, longitude], map.getZoom(), { animate: true });
     }
 
+    if(weather && currentLocation){
+      weather.checkAlerts(latitude, longitude);
+    }
+
   }, err => {
     statusGPS.textContent = "GPS: lỗi/không cấp quyền";
     console.warn(err);
@@ -391,9 +405,10 @@ function listenDeviceOrientation(){
 /* ====== EVENTS ====== */
 let currentLocation = null;
 
+// --- btnUseMyLocation ---
 btnUseMyLocation.addEventListener("click", () => {
   if (!navigator.geolocation) {
-    alert("Trình duyệt không hỗ trợ GPS.");
+    toast.show("Trình duyệt không hỗ trợ GPS.");
     return;
   }
 
@@ -413,20 +428,46 @@ btnUseMyLocation.addEventListener("click", () => {
     }
 
     // Cập nhật marker
-    if (!userMarker) {
-      userMarker = L.marker([latitude, longitude]).addTo(map);
-    } else {
-      userMarker.setLatLng([latitude, longitude]);
-    }
-
-    map.setView([latitude, longitude], 15);
     updateUserMarker(latitude, longitude);
 
+    map.setView([latitude, longitude], 15);
+
+    // --- Cập nhật thời tiết hiện tại ---
+    weather.updateCurrent(latitude, longitude);
+
   }, err => {
-    alert("Không lấy được vị trí của bạn: " + err.message);
+    toast.show("Không lấy được vị trí của bạn: " + err.message);
   }, { enableHighAccuracy: true });
 });
 
+// --- btnRoute ---
+btnRoute.addEventListener("click", async () => {
+  try {
+    const from = getLatLngFromInput(elFrom);
+    const to = getLatLngFromInput(elTo);
+
+    if (!from || !to) {
+      toast.show("Vui lòng nhập hoặc chọn địa chỉ hợp lệ.");
+      return;
+    }
+
+    clearRoute();
+    const route = await getRoute(from, to);
+    drawRoute(route, from, to);
+
+    // --- Weather dự báo trên route ---
+    weather.clearMarkers();
+    route.geometry.coordinates.forEach(c => weather.addMarker(c[1], c[0])); // [lng,lat] → [lat,lng]
+    weather.showRouteAlert();
+
+    // --- Traffic ---
+    traffic.showTraffic();
+
+  } catch (err) {
+    console.error(err);
+    toast.show("Không tính được lộ trình. Kiểm tra OSRM server hoặc dữ liệu đầu vào.");
+  }
+});
 
 function getLatLngFromInput(inputEl) {
   if (inputEl.dataset.lat && inputEl.dataset.lng) {
@@ -439,13 +480,17 @@ function getLatLngFromInput(inputEl) {
   return null;
 }
 
+if(currentLocation && weather){
+  weather.updateCurrent(currentLocation[0], currentLocation[1]);
+}
+
 btnRoute.addEventListener("click", async () => {
   try {
     const from = getLatLngFromInput(elFrom);
     const to = getLatLngFromInput(elTo);
 
     if (!from || !to) {
-      alert("Vui lòng nhập hoặc chọn địa chỉ hợp lệ.");
+      toast.show("Vui lòng nhập hoặc chọn địa chỉ hợp lệ.");
       return;
     }
 
@@ -453,16 +498,28 @@ btnRoute.addEventListener("click", async () => {
     const route = await getRoute(from, to);
     drawRoute(route, from, to);
 
+    weather.clearMarkers();
+    route.geometry.coordinates.forEach(c => weather.addMarker(c[1], c[0], "⚠️ Có khả năng mưa trong 2–3 km"));
+    weather.showRouteAlert();
+
+    // --- Hiển thị Traffic layer ---
+    traffic.showTraffic();
+
   } catch (err) {
     console.error(err);
-    alert("Không tính được lộ trình. Kiểm tra OSRM server hoặc dữ liệu đầu vào.");
+    toast.show("Không tính được lộ trình. Kiểm tra OSRM server hoặc dữ liệu đầu vào.");
   }
 });
 
 
-btnClear.addEventListener("click", ()=>{
+
+btnClear.addEventListener("click", ()=> {
   clearRoute();
+  stopVoice();
+  speak("Đã hoàn thành chuyến đi. Cảm ơn quý khách.");
+  cachedSteps = [];
 });
+
 
 btnStartVoice.addEventListener("click", ()=> startVoice());
 btnStopVoice.addEventListener("click", ()=> stopVoice());
@@ -480,6 +537,8 @@ btnDark.addEventListener("click", ()=>{
   if(startMarker) startMarker.addTo(map);
   if(endMarker) endMarker.addTo(map);
   if(userMarker) userMarker.addTo(map);
+
+  weather.updateUITheme(isLight);
 });
 
 btnDrivingMode.addEventListener("click", ()=>{
@@ -500,7 +559,7 @@ btnLocate.addEventListener("click", () => {
 
     map.setView(latlng, 17, { animate: true });
   } else {
-    alert("Chưa có vị trí người dùng.");
+    toast.show("Chưa có vị trí người dùng.");
   }
 });
 
@@ -515,9 +574,3 @@ btnRotate.addEventListener("click", ()=>{
 watchLocation();
 listenDeviceOrientation();
 
-/* ====== GỢI Ý TEST NHANH ======
-1) Bấm 📍 Dùng vị trí tôi -> điền From
-2) Nhập To = "10.775,106.700" (quận 1, HCM) hoặc "21.028,105.854" (Hà Nội) -> Tính lộ trình
-3) Bấm 🔊 Bắt đầu giọng nói
-4) Bật 🚘 Driving để xem giao diện lái
-================================ */

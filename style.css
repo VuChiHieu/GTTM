@@ -21,7 +21,7 @@
   --muted: #50567a;
   --primary: #2a66ff;
   --primary-2: #7da0ff;
-  --danger: #e5484d;
+  --danger: #6af352;
   --glass: rgba(10, 20, 40, 0.06);
   --shadow: 0 10px 24px rgba(10, 20, 40, 0.12);
 }
@@ -316,6 +316,30 @@ body {
   font-size: 14px;
 }
 
+.weather-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.weather-display span:first-child {
+  font-weight: 600;
+}
+
+body.light .weather-display {
+  background: linear-gradient(180deg, var(--card), var(--bg-soft));
+}
+
+body:not(.light) .weather-display {
+  background: linear-gradient(180deg, #2a2a2a, #1a1a1a);
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .main {
@@ -478,3 +502,39 @@ body:not(.light) .autocomplete-item.active {
   position: relative;
   display: inline-block;
 }
+
+/* toast.css */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  left: 50%;            
+  transform: translateX(-50%); 
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  min-width: 220px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  color: #fff;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: 0.3s ease, opacity 0.3s ease;
+  pointer-events: auto;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.success { background: #28de08; }
+.toast.error   { background: #e5484d; }
+.toast.warning { background: #f5a623; }
+.toast.info    { background: #2a66ff; }
