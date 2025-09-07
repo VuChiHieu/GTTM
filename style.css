@@ -6,7 +6,7 @@
   --muted: #aab1d6;
   --primary: #6c8cff;
   --primary-2: #9aaaff;
-  --danger: #ff6b6b;
+  --danger: #28de08;
   --glass: rgba(255, 255, 255, 0.06);
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   --radius: 18px;
@@ -394,4 +394,87 @@ body {
     bottom: 8px;
     right: 8px;
   }
+}
+
+/* ===== Responsive layout ===== */
+@media (max-width: 768px) {
+  .main {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    max-height: 200px; /* hiển thị ngắn gọn */
+    overflow-y: auto;
+    order: 2; /* xuống dưới map */
+  }
+
+  .map-wrap {
+    order: 1;
+    height: 70vh;
+  }
+}
+
+/* Sidebar có thể collapse */
+.sidebar.collapsed {
+  display: none;
+}
+
+.toggle-sidebar-btn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1001;
+  background: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* Autocomplete dropdown */
+/* Autocomplete (Light mode mặc định) */
+.autocomplete-list {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 9999;
+  width: 100%;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.autocomplete-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  color: #333;
+}
+
+.autocomplete-item:hover {
+  background: #f0f0f0;
+}
+
+/* Autocomplete (Dark mode) */
+body:not(.light) .autocomplete-list {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+body:not(.light) .autocomplete-item {
+  color: #ddd;
+}
+
+body:not(.light) .autocomplete-item:hover,
+body:not(.light) .autocomplete-item.active {
+  background: #444;
+  color: #fff;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
 }

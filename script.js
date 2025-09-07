@@ -52,6 +52,57 @@ function initMap(){
   tileLayer = darkTiles.addTo(map);
   map.on("click", (e)=> console.log("Map clicked:", e.latlng));
 }
+/* ====== autocomplete ====== */
+// Autocomplete function
+function setupAutocomplete(inputEl, listEl, onSelect) {
+  inputEl.addEventListener("input", async () => {
+    const query = inputEl.value.trim();
+    if (query.length < 3) {
+      listEl.style.display = "none";
+      return;
+    }
+
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=5`;
+    const res = await fetch(url, { headers: { "Accept-Language": "vi" } });
+    const data = await res.json();
+
+    // Clear old
+    listEl.innerHTML = "";
+    if (!data.length) {
+      listEl.style.display = "none";
+      return;
+    }
+
+    data.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "autocomplete-item";
+      div.textContent = item.display_name;
+      div.addEventListener("click", () => {
+        inputEl.value = item.display_name;
+        listEl.style.display = "none";
+        onSelect(item);
+      });
+      listEl.appendChild(div);
+    });
+
+    listEl.style.display = "block";
+  });
+}
+
+const listFrom = document.getElementById("autocompleteFrom");
+const listTo = document.getElementById("autocompleteTo");
+
+// Setup autocomplete cho điểm bắt đầu
+setupAutocomplete(elFrom, listFrom, (item) => {
+  elFrom.dataset.lat = item.lat;
+  elFrom.dataset.lng = item.lon;
+});
+
+// Setup autocomplete cho điểm đến
+setupAutocomplete(elTo, listTo, (item) => {
+  elTo.dataset.lat = item.lat;
+  elTo.dataset.lng = item.lon;
+});
 
 /* ====== UTIL ====== */
 function parseLatLng(input){
@@ -181,47 +232,70 @@ function renderSteps(steps){
 
 /* ====== VOICE NAVIGATION ====== */
 let speaking = false;
-let cachedSteps = [];
 let stepIndex = 0;
 let voiceTimer = null;
 
-function speak(text){
-  if(!("speechSynthesis" in window)) return;
-  const u = new SpeechSynthesisUtterance(text);
-  // chọn giọng Việt nếu có
-  const viVoice = speechSynthesis.getVoices().find(v=>/vi|Vietnam/i.test(v.lang));
-  if(viVoice) u.voice = viVoice;
-  u.lang = viVoice?.lang || "vi-VN";
-  u.rate = 1; u.pitch=1;
-  window.speechSynthesis.speak(u);
+// Hàm đọc text
+function speak(text) {
+  if (!("speechSynthesis" in window)) {
+    alert("Trình duyệt không hỗ trợ voice.");
+    return;
+  }
+  const msg = new SpeechSynthesisUtterance(text);
+  msg.lang = "vi-VN";
+  window.speechSynthesis.speak(msg);
 }
 
-function startVoice(){
-  if(!cachedSteps.length){ alert("Chưa có lộ trình để đọc hướng dẫn."); return; }
+function startVoice() {
+  if (!cachedSteps.length) {
+    alert("Chưa có lộ trình để đọc hướng dẫn.");
+    return;
+  }
+
   speaking = true;
   stepIndex = 0;
-  if(voiceTimer) clearInterval(voiceTimer);
+
+  // Dừng timer cũ nếu có
+  if (voiceTimer) clearInterval(voiceTimer);
+
   speak("Bắt đầu hành trình. Giữ an toàn khi lái xe.");
-  voiceTimer = setInterval(()=>{
-    if(!speaking){ clearInterval(voiceTimer); return; }
-    if(stepIndex < cachedSteps.length){
-      const s = cachedSteps[stepIndex];
-      const instr = s.maneuver?.instruction || "Tiếp tục đi thẳng";
+
+  voiceTimer = setInterval(() => {
+    if (!speaking) {
+      clearInterval(voiceTimer);
+      return;
+    }
+
+    if (stepIndex < cachedSteps.length) {
+      const step = cachedSteps[stepIndex];
+      const instr = step.maneuver?.instruction || "Tiếp tục đi thẳng";
       speak(instr);
       stepIndex++;
-    }else{
+    } else {
       speak("Bạn đã đến nơi. Kết thúc hành trình.");
       clearInterval(voiceTimer);
       speaking = false;
     }
-  }, 8000); // đọc mỗi 8s (đơn giản cho demo). Bước sau sẽ cải tiến theo khoảng cách còn lại.
+  }, 8000); // demo: đọc mỗi 8s
 }
 
-function stopVoice(){
+function stopVoice() {
   speaking = false;
-  if(voiceTimer) clearInterval(voiceTimer);
-  if("speechSynthesis" in window) window.speechSynthesis.cancel();
+  if (voiceTimer) {
+    clearInterval(voiceTimer);
+    voiceTimer = null;
+  }
+  window.speechSynthesis.cancel();
 }
+
+function pauseVoice() {
+  window.speechSynthesis.pause();
+}
+
+function resumeVoice() {
+  window.speechSynthesis.resume();
+}
+
 
 /* ====== USER LOCATION & HEADING ====== */
 function ensureUserMarker(){
@@ -245,39 +319,59 @@ function updateUserMarker(lat, lng){
   if(el) el.style.transform = `rotate(${currentHeading}deg)`;
 }
 
-function watchLocation(){
-  if(!navigator.geolocation){
+function watchLocation() {
+  if (!navigator.geolocation) {
     statusGPS.textContent = "GPS: không hỗ trợ";
     return;
   }
-  if(watchId) navigator.geolocation.clearWatch(watchId);
+  if (watchId) navigator.geolocation.clearWatch(watchId);
 
-  watchId = navigator.geolocation.watchPosition(pos=>{
-    const {latitude, longitude, heading, speed} = pos.coords;
+  watchId = navigator.geolocation.watchPosition(pos => {
+    const { latitude, longitude, heading, speed } = pos.coords;
+
+    // Hiển thị trạng thái
     statusGPS.textContent = `GPS: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-    if(typeof speed === "number" && !Number.isNaN(speed)){
-      statusSpeed.textContent = `Tốc độ ~ ${(speed*3.6).toFixed(0)} km/h`;
-    }else{
-      statusSpeed.textContent = "Tốc độ ~ — km/h";
-    }
+    statusSpeed.textContent = 
+      (typeof speed === "number" && !Number.isNaN(speed)) 
+      ? `Tốc độ ~ ${(speed * 3.6).toFixed(0)} km/h`
+      : "Tốc độ ~ — km/h";
 
-    if(typeof heading === "number" && !Number.isNaN(heading)){
-      currentHeading = heading; // degrees
+    if (typeof heading === "number" && !Number.isNaN(heading)) {
+      currentHeading = heading;
       statusHeading.textContent = `Hướng ${currentHeading.toFixed(0)}°`;
     }
 
+    // Update marker
     updateUserMarker(latitude, longitude);
-    if(headingLocked){
-      map.setView([latitude, longitude], map.getZoom(), {animate:true});
+
+    // Nếu drivingMode đang bật thì map follow user
+    if (drivingMode) {
+      map.setView([latitude, longitude], map.getZoom(), { animate: true });
     }
-  }, err=>{
+
+  }, err => {
     statusGPS.textContent = "GPS: lỗi/không cấp quyền";
     console.warn(err);
   }, {
-    enableHighAccuracy:true,
-    timeout:10000,
-    maximumAge:5000
+    enableHighAccuracy: true,
+    timeout: 10000,
+    maximumAge: 5000
   });
+}
+
+// Flag driving mode
+let drivingMode = false;
+
+function toggleDrivingMode() {
+  drivingMode = !drivingMode;
+  document.body.classList.toggle("driving", drivingMode);
+
+  if (!drivingMode) {
+    // Khi tắt driving mode thì dừng follow user, nhưng vẫn giữ watch GPS
+    console.log("Driving mode off");
+  } else {
+    console.log("Driving mode on");
+  }
 }
 
 function listenDeviceOrientation(){
@@ -295,32 +389,76 @@ function listenDeviceOrientation(){
 }
 
 /* ====== EVENTS ====== */
-btnUseMyLocation.addEventListener("click", ()=>{
-  if(!navigator.geolocation){ alert("Trình duyệt không hỗ trợ GPS."); return; }
-  navigator.geolocation.getCurrentPosition(pos=>{
-    const {latitude, longitude} = pos.coords;
-    elFrom.value = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+let currentLocation = null;
+
+btnUseMyLocation.addEventListener("click", () => {
+  if (!navigator.geolocation) {
+    alert("Trình duyệt không hỗ trợ GPS.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude, longitude } = pos.coords;
+    const lat = latitude.toFixed(6);
+    const lng = longitude.toFixed(6);
+
+    currentLocation = [latitude, longitude];
+
+    // Gán vào input nếu tồn tại
+    if (document.getElementById("startPoint")) {
+      document.getElementById("startPoint").value = `${lat},${lng}`;
+    }
+    if (elFrom) {
+      elFrom.value = `${lat},${lng}`;
+    }
+
+    // Cập nhật marker
+    if (!userMarker) {
+      userMarker = L.marker([latitude, longitude]).addTo(map);
+    } else {
+      userMarker.setLatLng([latitude, longitude]);
+    }
+
     map.setView([latitude, longitude], 15);
     updateUserMarker(latitude, longitude);
-  }, ()=> alert("Không lấy được vị trí của bạn."), {enableHighAccuracy:true});
+
+  }, err => {
+    alert("Không lấy được vị trí của bạn: " + err.message);
+  }, { enableHighAccuracy: true });
 });
 
-btnRoute.addEventListener("click", async ()=>{
-  try{
-    const from = parseLatLng(elFrom.value);
-    const to = parseLatLng(elTo.value);
-    if(!from || !to){
-      alert("Vui lòng nhập tọa độ dạng 'lat,lng' cho demo này.\n(Bước sau sẽ thêm Autocomplete địa chỉ)");
+
+function getLatLngFromInput(inputEl) {
+  if (inputEl.dataset.lat && inputEl.dataset.lng) {
+    return [parseFloat(inputEl.dataset.lat), parseFloat(inputEl.dataset.lng)];
+  }
+  // fallback: nếu user vẫn nhập tay dạng "lat,lng"
+  if (inputEl.value.includes(",")) {
+    return inputEl.value.split(",").map(v => parseFloat(v.trim()));
+  }
+  return null;
+}
+
+btnRoute.addEventListener("click", async () => {
+  try {
+    const from = getLatLngFromInput(elFrom);
+    const to = getLatLngFromInput(elTo);
+
+    if (!from || !to) {
+      alert("Vui lòng nhập hoặc chọn địa chỉ hợp lệ.");
       return;
     }
+
     clearRoute();
     const route = await getRoute(from, to);
     drawRoute(route, from, to);
-  }catch(err){
+
+  } catch (err) {
     console.error(err);
     alert("Không tính được lộ trình. Kiểm tra OSRM server hoặc dữ liệu đầu vào.");
   }
 });
+
 
 btnClear.addEventListener("click", ()=>{
   clearRoute();
@@ -370,53 +508,6 @@ btnLocate.addEventListener("click", () => {
 btnRotate.addEventListener("click", ()=>{
   headingLocked = !headingLocked;
   btnRotate.textContent = headingLocked ? "🧭 Mở khóa" : "🧭 Khóa hướng";
-});
-
-
-function toggleDrivingMode() {
-  if (!watchId) {
-    // Bật chế độ theo dõi vị trí
-    watchId = navigator.geolocation.watchPosition(pos => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      const latlng = [lat, lng];
-
-      // Di chuyển map theo vị trí người dùng
-      map.setView(latlng, 15);
-
-      // (tùy chọn) thêm marker
-      if (!userMarker) {
-        userMarker = L.marker(latlng).addTo(map);
-      } else {
-        userMarker.setLatLng(latlng);
-      }
-    });
-  } else {
-    // Tắt chế độ driving
-    navigator.geolocation.clearWatch(watchId);
-    watchId = null;
-  }
-}
-
-document.getElementById("btnUseMyLocation").addEventListener("click", () => {
-  navigator.geolocation.getCurrentPosition(pos => {
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-
-    // Gán vào input điểm bắt đầu
-    document.getElementById("startPoint").value = `${lat},${lng}`;
-
-    // Đặt marker trên bản đồ
-    if (!userMarker) {
-      userMarker = L.marker([lat, lng]).addTo(map);
-    } else {
-      userMarker.setLatLng([lat, lng]);
-    }
-
-    map.setView([lat, lng], 15);
-  }, err => {
-    alert("Không lấy được vị trí hiện tại: " + err.message);
-  });
 });
 
 

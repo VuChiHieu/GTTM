@@ -26,27 +26,31 @@
       </div>
 
       <div class="right-actions">
-        <button id="btnDark" class="btn ghost" title="Chuyển Dark/Light">🌙</button>
-        <button id="btnDrivingMode" class="btn" title="Chế độ lái xe">🚘 Driving</button>
+        <button id="btnDark" class="btn ghost" title="Chuyển Dark/Light" aria-label="Đổi chế độ sáng tối">🌙</button>
+        <button id="btnDrivingMode" class="btn" title="Chế độ lái xe" aria-label="Bật chế độ lái xe">🚘 Driving</button>
       </div>
     </header>
 
     <!-- Controls -->
     <section class="controls">
-      <div class="field">
+      <div class="field" style="position: relative;">
         <label>Điểm bắt đầu</label>
         <input id="inputFrom" type="text" placeholder="Ví dụ: 1600 Trường Sa, Q.3, HCM hoặc '10.77,106.68'"/>
+        <div id="autocompleteFrom" class="autocomplete-list" style="display:none"></div>
         <button id="btnUseMyLocation" class="btn tiny">📍 Dùng vị trí tôi</button>
       </div>
-      <div class="field">
+
+      <div class="field" style="position: relative;">
         <label>Điểm đến</label>
         <input id="inputTo" type="text" placeholder="Ví dụ: Bến xe, sân bay… hoặc '21.03,105.85'"/>
+        <div id="autocompleteTo" class="autocomplete-list" style="display:none"></div>
       </div>
+
       <div class="actions-row">
-        <button id="btnRoute" class="btn primary">🔎 Tính lộ trình</button>
-        <button id="btnStartVoice" class="btn">🔊 Bắt đầu giọng nói</button>
-        <button id="btnStopVoice" class="btn ghost">🔇 Dừng giọng nói</button>
-        <button id="btnClear" class="btn danger ghost">♻️ Xóa</button>
+        <button id="btnRoute" class="btn primary" title="Tính lộ trình">🔎 Tính lộ trình</button>
+        <button id="btnStartVoice" class="btn" title="Bắt đầu giọng nói">🔊 Bắt đầu giọng nói</button>
+        <button id="btnStopVoice" class="btn ghost" title="Dừng giọng nói">🔇 Dừng giọng nói</button>
+        <button id="btnClear" class="btn danger ghost" title="Xóa lộ trình">Hoàn thành chuyến đi</button>
       </div>
     </section>
 
@@ -81,8 +85,8 @@
         <div id="map" class="map"></div>
 
         <div class="floating-tools">
-          <button id="btnLocate" class="btn small">🎯 Center</button>
-          <button id="btnRotate" class="btn small ghost">🧭 Khóa hướng</button>
+          <button id="btnLocate" class="btn small" title="Định vị bản đồ về vị trí của tôi" aria-label="Định vị">🎯 Center</button>
+          <button id="btnRotate" class="btn small ghost" title="Khóa hướng la bàn" aria-label="Khóa hướng">🧭 Khóa hướng</button>
         </div>
 
         <!-- Bottom status bar (speed/heading placeholder) -->
@@ -96,7 +100,7 @@
 
     <!-- Footer -->
     <footer class="app-footer">
-      <span>© 2025 SmartRoute VN • Demo học tập</span>
+      <span>© 2025 SmartRoute VN • Demo học tập</span> • 
       <span>Tiles © OpenStreetMap contributors</span>
     </footer>
   </div>
