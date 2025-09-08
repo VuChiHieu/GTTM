@@ -455,6 +455,7 @@ btnRoute.addEventListener("click", async () => {
     const route = await getRoute(from, to);
     drawRoute(route, from, to);
 
+    weather.updateCurrent(from[0], from[1]);
     await weather.showRouteAlert(route.geometry.coordinates, { maxPoints: 20 });
 
     // --- Traffic ---
@@ -465,6 +466,14 @@ btnRoute.addEventListener("click", async () => {
     toast.show("Không tính được lộ trình. Kiểm tra OSRM server hoặc dữ liệu đầu vào.");
   }
 });
+const btnToggleDemo = document.getElementById("btnToggleDemo");
+
+btnToggleDemo.addEventListener("click", () => {
+  DEMO_MODE = !DEMO_MODE;
+  btnToggleDemo.textContent = DEMO_MODE ? "🌦️ Demo thời tiết OFF" : "🌦️ Demo thời tiết ON";
+  toast.show(DEMO_MODE ? "Đã bật Demo Mode (giả lập thời tiết)" : "Đã tắt Demo Mode (thời tiết thật)");
+});
+
 
 function getLatLngFromInput(inputEl) {
   if (inputEl.dataset.lat && inputEl.dataset.lng) {

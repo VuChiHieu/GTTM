@@ -1,4 +1,12 @@
 // weather.js
+
+window.DEMO_MODE = false;
+
+window.fakeWeatherList = ["Rain", "Thunderstorm", "Mist", "Fog", "Clear"];
+window.getFakeWeather = function () {
+  return fakeWeatherList[Math.floor(Math.random() * fakeWeatherList.length)];
+};
+
 export class WeatherModule {
   constructor(map, apiKey, toast, voiceNav) {
     this.map = map;
@@ -7,6 +15,16 @@ export class WeatherModule {
     this.voiceNav = voiceNav;
     this.markers = [];
     this.container = null;
+
+    this.alertMap = {
+      "Rain":        { msg: "⚠️ Gần đây đang mưa, hãy cẩn thận!", priority: 2, color: "orange" },
+      "Thunderstorm":{ msg: "⚠️ Giông bão, cân nhắc dừng xe!", priority: 3, color: "red" },
+      "Snow":        { msg: "⚠️ Tuyết rơi, đường trơn trượt!", priority: 3, color: "red" },
+      "Mist":        { msg: "⚠️ Sương mù, giảm tốc độ!", priority: 1, color: "gray" },
+      "Fog":         { msg: "⚠️ Sương mù, giảm tốc độ!", priority: 1, color: "gray" },
+      "Haze":        { msg: "⚠️ Khói mù, giảm tốc độ!", priority: 1, color: "gray" }
+    };
+
     this.initUI();
   }
 
@@ -36,17 +54,28 @@ export class WeatherModule {
   }
 
   async updateCurrent(lat, lng) {
-    try {
-      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&units=metric&lang=vi&appid=${this.apiKey}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Không lấy được dữ liệu thời tiết");
-      const data = await res.json();
-      this.showCurrent(data);
-    } catch (e) {
-      this.container.textContent = "❌ Không lấy được thời tiết";
-      console.error(e);
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&units=metric&lang=vi&appid=${this.apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Không lấy được dữ liệu thời tiết");
+    const data = await res.json();
+
+    let main = data.weather?.[0]?.main || null;
+
+    //Chế độ Demo ép giả lập thời tiết
+    if (window.DEMO_MODE) {
+      main = window.getFakeWeather();
+      data.weather[0].main = main;
+      data.weather[0].description = `(${main}) demo`;
     }
+
+    this.showCurrent(data);
+  } catch (e) {
+    this.container.textContent = "❌ Không lấy được thời tiết";
+    console.error(e);
   }
+}
+
 
   showCurrent(data) {
     const iconMap = {
@@ -67,14 +96,36 @@ export class WeatherModule {
   }
 
   addMarker(lat, lng, forecast = null) {
-    this.markers.push({ lat, lng, forecast, alertCount: 0, lastAlertTime: 0 });
+    const alertInfo = forecast && this.alertMap[forecast] ? this.alertMap[forecast] : null;
+    const color = alertInfo ? alertInfo.color : "green";
+
+    // thêm marker trực quan trên bản đồ
+    if (this.map && L) {
+      const marker = L.circleMarker([lat, lng], {
+        radius: 6,
+        color: color,
+        fillColor: color,
+        fillOpacity: 0.7
+      }).addTo(this.map);
+
+      this.markers.push({ lat, lng, forecast, alertCount: 0, lastAlertTime: 0, marker });
+    } else {
+      this.markers.push({ lat, lng, forecast, alertCount: 0, lastAlertTime: 0 });
+    }
   }
 
   clearMarkers() {
+    if (this.map && L) {
+      this.markers.forEach(m => {
+        if (m.marker && this.map.hasLayer(m.marker)) {
+          this.map.removeLayer(m.marker);
+        }
+      });
+    }
     this.markers = [];
   }
 
-  // Kiểm tra cảnh báo khi xe di chuyển
+  // 🔔 Kiểm tra cảnh báo khi xe di chuyển
   checkAlerts(userLat, userLng) {
     const toRad = deg => deg * Math.PI / 180;
     const distance = (lat1, lng1, lat2, lng2) => {
@@ -84,15 +135,6 @@ export class WeatherModule {
       const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
-    };
-
-    const alertMap = {
-      "Rain": "⚠️ Gần đây đang mưa, hãy cẩn thận!",
-      "Thunderstorm": "⚠️ Giông bão, cân nhắc dừng xe!",
-      "Snow": "⚠️ Tuyết rơi, đường trơn trượt!",
-      "Mist": "⚠️ Sương mù, giảm tốc độ!",
-      "Fog": "⚠️ Sương mù, giảm tốc độ!",
-      "Haze": "⚠️ Khói mù, giảm tốc độ!"
     };
 
     let nearestMarker = null;
@@ -111,9 +153,10 @@ export class WeatherModule {
       const now = Date.now();
       if (!nearestMarker.lastAlertTime || (now - nearestMarker.lastAlertTime >= 10000)) {
         const forecast = nearestMarker.forecast;
-        const msg = forecast && alertMap[forecast] ? alertMap[forecast] : "⚠️ Cảnh báo thời tiết trên tuyến đường!";
-        if (this.toast) this.toast.show(msg);
-        if (this.voiceNav) this.voiceNav.speak(msg);
+        const alertInfo = forecast && this.alertMap[forecast] ? this.alertMap[forecast].msg : "⚠️ Cảnh báo thời tiết trên tuyến đường!";
+        
+        if (this.toast) this.toast.show(alertInfo);
+        if (this.voiceNav) this.voiceNav.speak(alertInfo);
 
         nearestMarker.alertCount += 1;
         nearestMarker.lastAlertTime = now;
@@ -121,11 +164,8 @@ export class WeatherModule {
     }
   }
 
-  // Cảnh báo khi vừa tính xong route
   async showRouteAlert(routeCoords = null, { maxPoints = 20 } = {}) {
-    if (!routeCoords || !Array.isArray(routeCoords) || routeCoords.length === 0) {
-      return;
-    }
+    if (!routeCoords || !Array.isArray(routeCoords) || routeCoords.length === 0) return;
 
     this.clearMarkers();
 
@@ -136,16 +176,7 @@ export class WeatherModule {
       samples.push([c[1], c[0]]); // [lat,lng]
     }
 
-    const alertMap = {
-      "Rain": "⚠️ Gần đây đang mưa, hãy cẩn thận!",
-      "Thunderstorm": "⚠️ Giông bão, cân nhắc dừng xe!",
-      "Snow": "⚠️ Tuyết rơi, đường trơn trượt!",
-      "Mist": "⚠️ Sương mù, giảm tốc độ!",
-      "Fog": "⚠️ Sương mù, giảm tốc độ!",
-      "Haze": "⚠️ Khói mù, giảm tốc độ!"
-    };
-
-    let alertsFound = 0;
+    let alertsFound = [];
 
     for (const [lat, lng] of samples) {
       try {
@@ -156,9 +187,16 @@ export class WeatherModule {
           continue;
         }
         const data = await res.json();
-        const main = data.weather?.[0]?.main || null;
+
+        let main = data.weather?.[0]?.main || null;
+
+        // 👉 Nếu bật DEMO_MODE thì ép thời tiết ngẫu nhiên
+        if (window.DEMO_MODE) {
+          main = window.getFakeWeather();
+        }
+
         this.addMarker(lat, lng, main);
-        if (main && alertMap[main]) alertsFound += 1;
+        if (main && this.alertMap[main]) alertsFound.push(this.alertMap[main]);
         await new Promise(r => setTimeout(r, 150)); // throttle
       } catch (e) {
         console.error("Weather fetch err:", e);
@@ -166,8 +204,10 @@ export class WeatherModule {
       }
     }
 
-    if (alertsFound > 0) {
-      const msg = `⚠️ Phát hiện ${alertsFound} khu vực có thời tiết xấu trên tuyến đường!`;
+    if (alertsFound.length > 0) {
+      // 👉 lấy thông báo cảnh báo quan trọng nhất
+      const highest = alertsFound.sort((a, b) => b.priority - a.priority)[0];
+      const msg = `⚠️ Có ${alertsFound.length} khu vực có thời tiết xấu. ${highest.msg}`;
       if (this.toast) this.toast.show(msg);
       if (this.voiceNav) this.voiceNav.speak(msg);
     }
