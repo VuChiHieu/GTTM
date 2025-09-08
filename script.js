@@ -455,10 +455,7 @@ btnRoute.addEventListener("click", async () => {
     const route = await getRoute(from, to);
     drawRoute(route, from, to);
 
-    // --- Weather dự báo trên route ---
-    weather.clearMarkers();
-    route.geometry.coordinates.forEach(c => weather.addMarker(c[1], c[0])); // [lng,lat] → [lat,lng]
-    weather.showRouteAlert();
+    await weather.showRouteAlert(route.geometry.coordinates, { maxPoints: 20 });
 
     // --- Traffic ---
     traffic.showTraffic();
@@ -483,35 +480,6 @@ function getLatLngFromInput(inputEl) {
 if(currentLocation && weather){
   weather.updateCurrent(currentLocation[0], currentLocation[1]);
 }
-
-btnRoute.addEventListener("click", async () => {
-  try {
-    const from = getLatLngFromInput(elFrom);
-    const to = getLatLngFromInput(elTo);
-
-    if (!from || !to) {
-      toast.show("Vui lòng nhập hoặc chọn địa chỉ hợp lệ.");
-      return;
-    }
-
-    clearRoute();
-    const route = await getRoute(from, to);
-    drawRoute(route, from, to);
-
-    weather.clearMarkers();
-    route.geometry.coordinates.forEach(c => weather.addMarker(c[1], c[0], "⚠️ Có khả năng mưa trong 2–3 km"));
-    weather.showRouteAlert();
-
-    // --- Hiển thị Traffic layer ---
-    traffic.showTraffic();
-
-  } catch (err) {
-    console.error(err);
-    toast.show("Không tính được lộ trình. Kiểm tra OSRM server hoặc dữ liệu đầu vào.");
-  }
-});
-
-
 
 btnClear.addEventListener("click", ()=> {
   clearRoute();
