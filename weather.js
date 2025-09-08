@@ -76,7 +76,6 @@ export class WeatherModule {
   }
 }
 
-
   showCurrent(data) {
     const iconMap = {
       "Clear": "☀️",
@@ -96,19 +95,37 @@ export class WeatherModule {
   }
 
   addMarker(lat, lng, forecast = null) {
-    const alertInfo = forecast && this.alertMap[forecast] ? this.alertMap[forecast] : null;
-    const color = alertInfo ? alertInfo.color : "green";
+    const iconMap = {
+      "Clear": "☀️",
+      "Clouds": "⛅",
+      "Rain": "🌧️",
+      "Thunderstorm": "⛈️",
+      "Snow": "❄️",
+      "Drizzle": "🌦️",
+      "Mist": "🌫️",
+      "Fog": "🌫️",
+      "Haze": "🌫️"
+    };
+    const iconText = forecast && iconMap[forecast] ? iconMap[forecast] : "❓";
 
-    // thêm marker trực quan trên bản đồ
     if (this.map && L) {
-      const marker = L.circleMarker([lat, lng], {
-        radius: 6,
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.7
+      // custom marker dùng emoji
+      const marker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: "weather-marker",
+          html: `<div style="
+            font-size:20px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 50%;
+            padding: 4px;
+            text-align:center;
+          ">${iconText}</div>`,
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        })
       }).addTo(this.map);
 
-      this.markers.push({ lat, lng, forecast, alertCount: 0, lastAlertTime: 0, marker });
+      this.markers.push({ lat, lng, forecast, marker, alertCount: 0, lastAlertTime: 0 });
     } else {
       this.markers.push({ lat, lng, forecast, alertCount: 0, lastAlertTime: 0 });
     }
@@ -123,7 +140,7 @@ export class WeatherModule {
       });
     }
     this.markers = [];
-  }
+}
 
   // 🔔 Kiểm tra cảnh báo khi xe di chuyển
   checkAlerts(userLat, userLng) {

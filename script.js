@@ -466,6 +466,7 @@ btnRoute.addEventListener("click", async () => {
     toast.show("Không tính được lộ trình. Kiểm tra OSRM server hoặc dữ liệu đầu vào.");
   }
 });
+
 const btnToggleDemo = document.getElementById("btnToggleDemo");
 
 btnToggleDemo.addEventListener("click", () => {
@@ -501,21 +502,32 @@ btnClear.addEventListener("click", ()=> {
 btnStartVoice.addEventListener("click", ()=> startVoice());
 btnStopVoice.addEventListener("click", ()=> stopVoice());
 
-btnDark.addEventListener("click", ()=>{
+btnDark.addEventListener("click", ()=> {
   document.body.classList.toggle("light");
-  // đổi tile giữa light/dark
-  map.eachLayer(l=> map.removeLayer(l));
+
+  // gỡ tile cũ
+  if (tileLayer) map.removeLayer(tileLayer);
+
+  // chọn theme
   const isLight = document.body.classList.contains("light");
   const lightTiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:20});
   const darkTiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {maxZoom:20});
   tileLayer = isLight ? lightTiles : darkTiles;
   tileLayer.addTo(map);
+
+  // giữ lại route/marker cũ
   if(routeLine) routeLine.addTo(map);
   if(startMarker) startMarker.addTo(map);
   if(endMarker) endMarker.addTo(map);
   if(userMarker) userMarker.addTo(map);
 
+  // gọi lại render thời tiết
   weather.updateUITheme(isLight);
+  if (currentRoute) {
+    weather.showRouteAlert(currentRoute.geometry.coordinates, { maxPoints: 20 });
+    const [lng, lat] = currentRoute.geometry.coordinates[0]; // [lng,lat]
+    weather.updateCurrent(lat, lng); // truyền [lat,lng]
+  }
 });
 
 btnDrivingMode.addEventListener("click", ()=>{
