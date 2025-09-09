@@ -441,6 +441,8 @@ btnUseMyLocation.addEventListener("click", () => {
 });
 
 // --- btnRoute ---
+let currentRoute = null; // 🔹 khai báo biến toàn cục để lưu route
+
 btnRoute.addEventListener("click", async () => {
   try {
     const from = getLatLngFromInput(elFrom);
@@ -455,7 +457,13 @@ btnRoute.addEventListener("click", async () => {
     const route = await getRoute(from, to);
     drawRoute(route, from, to);
 
+    // 🔹 lưu route để các chỗ khác (ví dụ: toggle theme) có thể dùng lại
+    currentRoute = route;
+
+    // 🔹 hiển thị thời tiết tại điểm bắt đầu
     weather.updateCurrent(from[0], from[1]);
+
+    // 🔹 kiểm tra và cảnh báo thời tiết trên route
     await weather.showRouteAlert(route.geometry.coordinates, { maxPoints: 20 });
 
     // --- Traffic ---
@@ -466,6 +474,7 @@ btnRoute.addEventListener("click", async () => {
     toast.show("Không tính được lộ trình. Kiểm tra OSRM server hoặc dữ liệu đầu vào.");
   }
 });
+
 
 const btnToggleDemo = document.getElementById("btnToggleDemo");
 
