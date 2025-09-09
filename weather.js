@@ -170,13 +170,17 @@ export class WeatherModule {
       const now = Date.now();
       if (!nearestMarker.lastAlertTime || (now - nearestMarker.lastAlertTime >= 10000)) {
         const forecast = nearestMarker.forecast;
-        const alertInfo = forecast && this.alertMap[forecast] ? this.alertMap[forecast].msg : "⚠️ Cảnh báo thời tiết trên tuyến đường!";
         
-        if (this.toast) this.toast.show(alertInfo);
-        if (this.voiceNav) this.voiceNav.speak(alertInfo);
+        // 🔥 chỉ cảnh báo nếu forecast nằm trong alertMap
+        if (forecast && this.alertMap[forecast]) {
+          const alertInfo = this.alertMap[forecast].msg;
+          
+          if (this.toast) this.toast.show(alertInfo);
+          if (this.voiceNav) this.voiceNav.speak(alertInfo);
 
-        nearestMarker.alertCount += 1;
-        nearestMarker.lastAlertTime = now;
+          nearestMarker.alertCount += 1;
+          nearestMarker.lastAlertTime = now;
+        }
       }
     }
   }

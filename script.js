@@ -40,7 +40,8 @@ const voiceNav = {
   speak: speak
 };
 const weather = new WeatherModule(map, OPENWEATHER_KEY, toast, voiceNav);
-const traffic = new TrafficModule(map);
+const traffic = new TrafficModule(map, { toast, voiceNav });
+
 function initMap(){
   map = L.map("map", {
     zoomControl: true,
@@ -363,6 +364,7 @@ function watchLocation() {
       weather.checkAlerts(latitude, longitude);
     }
 
+    
   }, err => {
     statusGPS.textContent = "GPS: lỗi/không cấp quyền";
     console.warn(err);
@@ -466,8 +468,7 @@ btnRoute.addEventListener("click", async () => {
     // 🔹 kiểm tra và cảnh báo thời tiết trên route
     await weather.showRouteAlert(route.geometry.coordinates, { maxPoints: 20 });
 
-    // --- Traffic ---
-    traffic.showTraffic();
+    traffic.showTraffic(route.geometry.coordinates);
 
   } catch (err) {
     console.error(err);
@@ -500,12 +501,33 @@ if(currentLocation && weather){
   weather.updateCurrent(currentLocation[0], currentLocation[1]);
 }
 
-btnClear.addEventListener("click", ()=> {
+btnClear.addEventListener("click", () => {
+  // Xoá route
   clearRoute();
+
+  // Xoá thời tiết
+  if (weather) {
+    weather.clearMarkers();
+    weather.container.textContent = ""; // clear info hiển thị
+  }
+
+  // Xoá traffic
+  if (traffic && typeof traffic.clearTraffic === "function") {
+    traffic.clearTraffic();
+  }
+
+  // Reset input điểm đi / đến
+  if (elFrom) elFrom.value = "";
+  if (elTo) elTo.value = "";
+
+  // Voice thông báo
   stopVoice();
   speak("Đã hoàn thành chuyến đi. Cảm ơn quý khách.");
+
+  // Reset cached steps
   cachedSteps = [];
 });
+
 
 
 btnStartVoice.addEventListener("click", ()=> startVoice());
