@@ -528,8 +528,6 @@ btnClear.addEventListener("click", () => {
   cachedSteps = [];
 });
 
-
-
 btnStartVoice.addEventListener("click", ()=> startVoice());
 btnStopVoice.addEventListener("click", ()=> stopVoice());
 
